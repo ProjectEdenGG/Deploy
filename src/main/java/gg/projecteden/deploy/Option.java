@@ -53,9 +53,9 @@ public enum Option {
 	@Description("Maven or Gradle")
 	FRAMEWORK,
 
-	@Description("Compile in offline mode with Maven")
+	@Description("Compile in offline mode")
 	@DefaultValue("true")
-	MVN_OFFLINE,
+	COMPILE_OFFLINE,
 
 	@Description("Skip tests with Maven")
 	@DefaultValue("false")

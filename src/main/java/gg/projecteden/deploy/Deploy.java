@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static gg.projecteden.deploy.Option.COMPILE_OFFLINE;
 import static gg.projecteden.deploy.Option.FRAMEWORK;
 import static gg.projecteden.deploy.Option.GRADLE_BUILD_PATH;
 import static gg.projecteden.deploy.Option.GRADLE_COMMAND;
@@ -31,7 +32,6 @@ import static gg.projecteden.deploy.Option.HELP;
 import static gg.projecteden.deploy.Option.HOST;
 import static gg.projecteden.deploy.Option.JAR_NAME;
 import static gg.projecteden.deploy.Option.MC_USER;
-import static gg.projecteden.deploy.Option.MVN_OFFLINE;
 import static gg.projecteden.deploy.Option.MVN_SKIP_TESTS;
 import static gg.projecteden.deploy.Option.MVN_TARGET_PATH;
 import static gg.projecteden.deploy.Option.PLUGIN;
@@ -103,13 +103,16 @@ public class Deploy {
 
 		switch (OPTIONS.get(FRAMEWORK).toLowerCase()) {
 			case "gradle" -> {
-				compileCommand = "%s clean build".formatted(OPTIONS.get(GRADLE_COMMAND));
+				compileCommand = "%s jar".formatted(OPTIONS.get(GRADLE_COMMAND));
 				jarPath = OPTIONS.get(GRADLE_BUILD_PATH);
+
+				if (Boolean.parseBoolean(OPTIONS.get(COMPILE_OFFLINE)))
+					compileCommand += " --offline";
 			}
 			case "maven" -> {
 				compileCommand = "mvn clean package";
 				jarPath = OPTIONS.get(MVN_TARGET_PATH);
-				if (Boolean.parseBoolean(OPTIONS.get(MVN_OFFLINE)))
+				if (Boolean.parseBoolean(OPTIONS.get(COMPILE_OFFLINE)))
 					compileCommand += " -o";
 				if (Boolean.parseBoolean(OPTIONS.get(MVN_SKIP_TESTS)))
 					compileCommand += " -DskipTests";
@@ -130,7 +133,9 @@ public class Deploy {
 	}
 
 	static void compile() {
-		execLocal(compileCommand);
+		final int exitCode = execLocal(compileCommand).exitValue();
+		if (exitCode != 0)
+			System.exit(exitCode);
 	}
 
 	@SneakyThrows
@@ -199,12 +204,13 @@ public class Deploy {
 	}
 
 	@SneakyThrows
-	static void execLocal(String command) {
-		new ProcessBuilder(command.split(" "))
-			.directory(new File(pluginDirectory))
-			.inheritIO()
-			.start()
-			.waitFor();
+	static Process execLocal(String command) {
+		final Process process = new ProcessBuilder(command.split(" "))
+				.directory(new File(pluginDirectory))
+				.inheritIO()
+				.start();
+		process.waitFor();
+		return process;
 	}
 
 	@SneakyThrows
