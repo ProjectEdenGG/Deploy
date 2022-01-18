@@ -15,3 +15,7 @@ Plugin deploy script for Project Eden developers
     --framework=\<framework>
 6. Modify arguments as needed (see man page)
 7. Save and run
+
+## TODO
+1. Global config file for usernames & workspace
+2. Auto-detect framework
