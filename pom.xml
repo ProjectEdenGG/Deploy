@@ -77,6 +77,21 @@
 			<artifactId>jopt-simple</artifactId>
 			<version>6.0-alpha-3</version>
 		</dependency>
+		<dependency>
+			<groupId>com.hierynomus</groupId>
+			<artifactId>sshj</artifactId>
+			<version>0.32.0</version>
+		</dependency>
+		<dependency>
+			<groupId>fr.jcgay.send-notification</groupId>
+			<artifactId>send-notification</artifactId>
+			<version>0.16.0</version>
+		</dependency>
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-simple</artifactId>
+			<version>1.7.32</version>
+		</dependency>
 	</dependencies>
 
 </project>

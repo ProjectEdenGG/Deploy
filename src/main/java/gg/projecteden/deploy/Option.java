@@ -120,4 +120,9 @@ public enum Option {
 		if (hasDefaultValue())
 			spec.defaultsTo(Objects.requireNonNull(getDefaultValue()));
 	}
+
+	public static void buildAll(OptionParser parser) {
+		for (Option option : Option.values())
+			option.build(parser);
+	}
 }

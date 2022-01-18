@@ -1,29 +1,71 @@
 package gg.projecteden.deploy;
 
+import fr.jcgay.notification.Icon;
+import fr.jcgay.notification.Notification;
+import fr.jcgay.notification.Notifier;
+import fr.jcgay.notification.SendNotification;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import lombok.SneakyThrows;
+import net.schmizz.sshj.SSHClient;
+import net.schmizz.sshj.common.IOUtils;
+import net.schmizz.sshj.connection.channel.direct.Session;
+import net.schmizz.sshj.connection.channel.direct.Session.Command;
+import net.schmizz.sshj.xfer.FileSystemFile;
+import org.slf4j.impl.SimpleLogger;
 
 import java.io.File;
-import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.Scanner;
 
-import static gg.projecteden.deploy.Option.*;
+import static gg.projecteden.deploy.Option.FRAMEWORK;
+import static gg.projecteden.deploy.Option.GRADLE_BUILD_PATH;
+import static gg.projecteden.deploy.Option.GRADLE_COMMAND;
+import static gg.projecteden.deploy.Option.HELP;
+import static gg.projecteden.deploy.Option.HOST;
+import static gg.projecteden.deploy.Option.JAR_NAME;
+import static gg.projecteden.deploy.Option.MC_USER;
+import static gg.projecteden.deploy.Option.MVN_OFFLINE;
+import static gg.projecteden.deploy.Option.MVN_SKIP_TESTS;
+import static gg.projecteden.deploy.Option.MVN_TARGET_PATH;
+import static gg.projecteden.deploy.Option.PLUGIN;
+import static gg.projecteden.deploy.Option.PORT;
+import static gg.projecteden.deploy.Option.SERVER;
+import static gg.projecteden.deploy.Option.SSH_USER;
+import static gg.projecteden.deploy.Option.SUDO;
+import static gg.projecteden.deploy.Option.WORKSPACE;
 
 public class Deploy {
-	private static final Map<Option, String> OPTIONS = new HashMap<>();
+	static final Map<Option, String> OPTIONS = new HashMap<>();
 
-	private static String pluginDirectory;
-	private static String jarPath;
-	private static String compileCommand;
+	static String pluginDirectory;
+	static String jarPath;
+	static String compileCommand;
+	static String destination;
+
+	static long start = System.currentTimeMillis();
+
+	public static final String ANSI_RESET = "\u001B[0m";
+	public static final String ANSI_RED = "\u001B[31m";
+	public static final String ANSI_GREEN = "\u001B[32m";
+	public static final String ANSI_YELLOW = "\u001B[33m";
+
+	private static void log(String message) {
+		System.out.println(ANSI_GREEN + message + ANSI_RESET);
+	}
 
 	@SneakyThrows
 	public static void main(String[] args) {
+		System.setProperty(SimpleLogger.DEFAULT_LOG_LEVEL_KEY, "Warn");
+
 		OptionParser parser = new OptionParser();
-		for (Option option : Option.values())
-			option.build(parser);
+		Option.buildAll(parser);
 
 		final OptionSet parsed = parser.parse(args);
 
@@ -35,23 +77,28 @@ public class Deploy {
 		for (Option option : Option.values())
 			OPTIONS.put(option, (String) parsed.valueOf(option.getArgument()));
 
-		System.out.println("CONFIGURING...");
+		log("CONFIGURING...");
 		configure();
 
-		System.out.println("COMPILING...");
+		log("DELETING...");
+		delete();
+
+		log("COMPILING...");
 		compile();
 
-		System.out.println("UPLOADING...");
+		log("UPLOADING...");
 		upload();
 
-		System.out.println("RELOADING...");
+		log("RELOADING...");
 		reload();
 
-		System.out.println("DONE");
+		log("DONE");
 		desktopNotification();
+
+		System.exit(0);
 	}
 
-	private static void configure() {
+	static void configure() {
 		pluginDirectory = "%s/%s/".formatted(OPTIONS.get(WORKSPACE), OPTIONS.get(PLUGIN));
 
 		switch (OPTIONS.get(FRAMEWORK).toLowerCase()) {
@@ -69,9 +116,63 @@ public class Deploy {
 			}
 			default -> throw new RuntimeException("Unsupported framework '" + OPTIONS.get(FRAMEWORK) + "'");
 		}
+
+		if (isNullOrEmpty(OPTIONS.get(JAR_NAME)))
+			OPTIONS.put(JAR_NAME, OPTIONS.get(PLUGIN));
+
+		destination = "/home/minecraft/servers/%s/plugins/%s.jar".formatted(OPTIONS.get(SERVER), OPTIONS.get(JAR_NAME));
 	}
 
-	private static String getReloadCommand() {
+	static void delete() {
+		final String message = execRemote("rm " + destination, "minecraft");
+		if (!isNullOrEmpty(message))
+			System.out.println(message);
+	}
+
+	static void compile() {
+		execLocal(compileCommand);
+	}
+
+	@SneakyThrows
+	static Path findCompiledJar() {
+		List<Path> matches = new ArrayList<>();
+		Files.walk(Path.of(pluginDirectory + jarPath)).forEach(path -> {
+			if (!path.toFile().isFile())
+				return;
+
+			if (!path.toUri().toString().endsWith(".jar"))
+				return;
+
+			matches.add(path);
+		});
+
+		if (matches.isEmpty())
+			throw new RuntimeException("Could not locate compiled jar in " + pluginDirectory + jarPath);
+
+		// Find jar with the shortest name
+		matches.sort(Comparator.comparingInt(path -> path.toUri().toString().length()));
+
+		return matches.get(0);
+	}
+
+	@SneakyThrows
+	static void upload() {
+		try (SSHClient ssh = new SSHClient()) {
+			ssh.loadKnownHosts();
+			ssh.connect(OPTIONS.get(HOST), Integer.parseInt(OPTIONS.get(PORT)));
+			ssh.authPublickey("minecraft");
+			ssh.useCompression();
+			ssh.newSCPFileTransfer().upload(new FileSystemFile(findCompiledJar().toFile()), destination);
+		}
+	}
+
+	static void reload() {
+		final String message = execRemote("mark2 send -n %s '%s'".formatted(OPTIONS.get(SERVER), getReloadCommand()), OPTIONS.get(SSH_USER));
+		if (!isNullOrEmpty(message))
+			System.out.println(message);
+	}
+
+	static String getReloadCommand() {
 		String reloadCommand = "plugman reload " + OPTIONS.get(JAR_NAME);
 		if (OPTIONS.get(PLUGIN).startsWith("Nexus"))
 			reloadCommand = "nexus reload";
@@ -82,37 +183,46 @@ public class Deploy {
 		return reloadCommand;
 	}
 
-	private static void compile() {
-		System.out.println(bash(compileCommand));
-	}
+	@SneakyThrows
+	static void desktopNotification() {
+		Notifier notifier = new SendNotification().initNotifier();
 
-	private static String findCompiledJar() {
-		return bash("find %s -iname '%s*.jar' | head -n 1".formatted(pluginDirectory + jarPath, OPTIONS.get(JAR_NAME)));
-	}
-
-	private static void upload() {
-		System.out.println(bash("scp -P %s %s minecraft@%s:/home/minecraft/servers/%s/plugins/%s.jar".formatted(
-			OPTIONS.get(PORT), findCompiledJar(), OPTIONS.get(HOST), OPTIONS.get(SERVER), OPTIONS.get(JAR_NAME)
-		)));
-	}
-
-	private static void reload() {
-		bash("ssh -p %s %s@%s \"mark2 send -n %s '%s'\"".formatted(
-			OPTIONS.get(PORT), OPTIONS.get(SSH_USER), OPTIONS.get(HOST), OPTIONS.get(SERVER), getReloadCommand())
-		);
-	}
-
-	private static void desktopNotification() {
-		bash("notify-send -t 2000 -i /home/griffin/Pictures/icons/idea.png \"%s deployment complete\"".formatted(OPTIONS.get(PLUGIN)));
+		try {
+			notifier.send(Notification.builder()
+					.title("%s deployment complete".formatted(OPTIONS.get(PLUGIN)))
+					.icon(Icon.create(Path.of("idea.png").toUri().toURL(), "idea"))
+					.message("Took %ss".formatted(new DecimalFormat("#.###").format((System.currentTimeMillis() - start) / 1000f)))
+					.build());
+		} finally {
+			notifier.close();
+		}
 	}
 
 	@SneakyThrows
-	public static String bash(String command) {
-		System.out.println("Executing command: " + command);
-		InputStream result = Runtime.getRuntime().exec(command, null, new File(pluginDirectory)).getInputStream();
-		StringBuilder builder = new StringBuilder();
-		new Scanner(result).forEachRemaining((string) -> builder.append(string).append(" "));
-		return builder.toString().trim();
+	static void execLocal(String command) {
+		new ProcessBuilder(command.split(" "))
+			.directory(new File(pluginDirectory))
+			.inheritIO()
+			.start()
+			.waitFor();
+	}
+
+	@SneakyThrows
+	static String execRemote(String command, String username) {
+		try (SSHClient ssh = new SSHClient()) {
+			ssh.loadKnownHosts();
+			ssh.connect(OPTIONS.get(HOST), Integer.parseInt(OPTIONS.get(PORT)));
+			ssh.authPublickey(username);
+
+			try (Session session = ssh.startSession()) {
+				final Command cmd = session.exec(command);
+				return IOUtils.readFully(cmd.getInputStream()).toString();
+			}
+		}
+	}
+
+	private static boolean isNullOrEmpty(String s) {
+		return s == null || s.isEmpty();
 	}
 
 }
