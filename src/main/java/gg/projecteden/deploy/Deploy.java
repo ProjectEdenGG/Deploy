@@ -205,10 +205,14 @@ public class Deploy {
 
 	@SneakyThrows
 	static Process execLocal(String command) {
+		if (System.getProperty("os.name").startsWith("Windows"))
+			command = "cmd /c " + command;
+
 		final Process process = new ProcessBuilder(command.split(" "))
 				.directory(new File(pluginDirectory))
 				.inheritIO()
 				.start();
+
 		process.waitFor();
 		return process;
 	}
