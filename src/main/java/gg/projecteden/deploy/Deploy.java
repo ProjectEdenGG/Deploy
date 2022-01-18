@@ -15,6 +15,7 @@ import net.schmizz.sshj.xfer.FileSystemFile;
 import org.slf4j.impl.SimpleLogger;
 
 import java.io.File;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.DecimalFormat;
@@ -62,40 +63,44 @@ public class Deploy {
 
 	@SneakyThrows
 	public static void main(String[] args) {
-		System.setProperty(SimpleLogger.DEFAULT_LOG_LEVEL_KEY, "Warn");
+		try {
+			System.setProperty(SimpleLogger.DEFAULT_LOG_LEVEL_KEY, "Warn");
 
-		OptionParser parser = new OptionParser();
-		Option.buildAll(parser);
+			OptionParser parser = new OptionParser();
+			Option.buildAll(parser);
 
-		final OptionSet parsed = parser.parse(args);
+			final OptionSet parsed = parser.parse(args);
 
-		if (parsed.has(HELP.getArgument())) {
-			parser.printHelpOn(System.out);
-			return;
+			if (parsed.has(HELP.getArgument())) {
+				parser.printHelpOn(System.out);
+				return;
+			}
+
+			for (Option option : Option.values())
+				OPTIONS.put(option, (String) parsed.valueOf(option.getArgument()));
+
+			log("CONFIGURING...");
+			configure();
+
+			log("DELETING...");
+			delete();
+
+			log("COMPILING...");
+			compile();
+
+			log("UPLOADING...");
+			upload();
+
+			log("RELOADING...");
+			reload();
+
+			log("DONE");
+			desktopNotification();
+		} catch (Exception ex) {
+			ex.printStackTrace();
+		} finally {
+			System.exit(0);
 		}
-
-		for (Option option : Option.values())
-			OPTIONS.put(option, (String) parsed.valueOf(option.getArgument()));
-
-		log("CONFIGURING...");
-		configure();
-
-		log("DELETING...");
-		delete();
-
-		log("COMPILING...");
-		compile();
-
-		log("UPLOADING...");
-		upload();
-
-		log("RELOADING...");
-		reload();
-
-		log("DONE");
-		desktopNotification();
-
-		System.exit(0);
 	}
 
 	static void configure() {
@@ -195,7 +200,8 @@ public class Deploy {
 		try {
 			notifier.send(Notification.builder()
 					.title("%s deployment complete".formatted(OPTIONS.get(PLUGIN)))
-					.icon(Icon.create(Path.of("idea.png").toUri().toURL(), "idea"))
+					// TODO Figure out why it cant load from resources on Windows
+					.icon(Icon.create(new URL("https://i.projecteden.gg/idea.png"), "idea"))
 					.message("Took %ss".formatted(new DecimalFormat("#.###").format((System.currentTimeMillis() - start) / 1000f)))
 					.build());
 		} finally {
