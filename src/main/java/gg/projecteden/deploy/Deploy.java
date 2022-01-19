@@ -211,7 +211,7 @@ public class Deploy {
 
 	@SneakyThrows
 	static Process execLocal(String command) {
-		if (System.getProperty("os.name").startsWith("Windows"))
+		if (isWindows())
 			command = "cmd /c " + command;
 
 		final Process process = new ProcessBuilder(command.split(" "))
@@ -221,6 +221,10 @@ public class Deploy {
 
 		process.waitFor();
 		return process;
+	}
+
+	public static boolean isWindows() {
+		return System.getProperty("os.name").startsWith("Windows");
 	}
 
 	@SneakyThrows

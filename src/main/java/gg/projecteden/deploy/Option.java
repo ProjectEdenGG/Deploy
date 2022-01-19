@@ -10,6 +10,8 @@ import lombok.SneakyThrows;
 import java.lang.reflect.Field;
 import java.util.Objects;
 
+import static gg.projecteden.deploy.Deploy.isWindows;
+
 public enum Option {
 	@Description("Print this help menu")
 	HELP,
@@ -66,8 +68,20 @@ public enum Option {
 	MVN_TARGET_PATH,
 
 	@Description("Gradle command")
-	@DefaultValue("./gradlew")
-	GRADLE_COMMAND,
+	GRADLE_COMMAND {
+		@Override
+		public String getDefaultValue() {
+			if (isWindows())
+				return "gradlew.bat";
+			else
+				return "./gradlew";
+		}
+
+		@Override
+		public boolean hasDefaultValue() {
+			return true;
+		}
+	},
 
 	@Description("Folder where the compiled jar resides with Gradle")
 	@DefaultValue("build/libs")
