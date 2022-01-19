@@ -108,7 +108,7 @@ public class Deploy {
 
 		switch (OPTIONS.get(FRAMEWORK).toLowerCase()) {
 			case "gradle" -> {
-				compileCommand = "%s jar".formatted(OPTIONS.get(GRADLE_COMMAND));
+				compileCommand = "%s build".formatted(OPTIONS.get(GRADLE_COMMAND));
 				jarPath = OPTIONS.get(GRADLE_BUILD_PATH);
 
 				if (Boolean.parseBoolean(OPTIONS.get(COMPILE_OFFLINE)))
