@@ -8,6 +8,7 @@ import joptsimple.OptionParser;
 import lombok.SneakyThrows;
 
 import java.lang.reflect.Field;
+import java.util.Map;
 import java.util.Objects;
 
 import static gg.projecteden.deploy.Deploy.isWindows;
@@ -43,6 +44,10 @@ public enum Option {
 	@Description("SSH Port")
 	@DefaultValue("9802")
 	PORT,
+
+	@Description("Reload command")
+	@DefaultValue("plugman reload %s")
+	RELOAD_COMMAND,
 
 	@Description("Jar name, if different than folder name")
 	JAR_NAME,
@@ -120,6 +125,10 @@ public enum Option {
 			return null;
 
 		return annotation.value();
+	}
+
+	public boolean isDefault(Map<Option, String> options) {
+		return Objects.equals(options.get(this), getDefaultValue());
 	}
 
 	public void build(OptionParser parser) {

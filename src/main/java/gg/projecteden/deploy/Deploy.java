@@ -37,6 +37,7 @@ import static gg.projecteden.deploy.Option.MVN_SKIP_TESTS;
 import static gg.projecteden.deploy.Option.MVN_TARGET_PATH;
 import static gg.projecteden.deploy.Option.PLUGIN;
 import static gg.projecteden.deploy.Option.PORT;
+import static gg.projecteden.deploy.Option.RELOAD_COMMAND;
 import static gg.projecteden.deploy.Option.SERVER;
 import static gg.projecteden.deploy.Option.SSH_USER;
 import static gg.projecteden.deploy.Option.SUDO;
@@ -183,9 +184,10 @@ public class Deploy {
 	}
 
 	static String getReloadCommand() {
-		String reloadCommand = "plugman reload " + OPTIONS.get(JAR_NAME);
+		String reloadCommand = OPTIONS.get(RELOAD_COMMAND).formatted(OPTIONS.get(JAR_NAME));
 		if (OPTIONS.get(PLUGIN).startsWith("Nexus"))
-			reloadCommand = "nexus reload";
+			if (RELOAD_COMMAND.isDefault(OPTIONS))
+				reloadCommand = "nexus reload";
 
 		if (Boolean.parseBoolean(OPTIONS.get(SUDO)))
 			reloadCommand = "sudo %s %s".formatted(OPTIONS.get(MC_USER), reloadCommand);
