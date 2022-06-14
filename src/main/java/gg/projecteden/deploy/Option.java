@@ -45,6 +45,10 @@ public enum Option {
 	@DefaultValue("9802")
 	PORT,
 
+	@Description("Known hosts file")
+	@DefaultValue("")
+	HOSTS_FILE,
+
 	@Description("Reload command")
 	@DefaultValue("plugman reload %s")
 	RELOAD_COMMAND,

@@ -31,6 +31,7 @@ import static gg.projecteden.deploy.Option.GRADLE_BUILD_PATH;
 import static gg.projecteden.deploy.Option.GRADLE_COMMAND;
 import static gg.projecteden.deploy.Option.HELP;
 import static gg.projecteden.deploy.Option.HOST;
+import static gg.projecteden.deploy.Option.HOSTS_FILE;
 import static gg.projecteden.deploy.Option.JAR_NAME;
 import static gg.projecteden.deploy.Option.MC_USER;
 import static gg.projecteden.deploy.Option.MVN_SKIP_TESTS;
@@ -169,7 +170,9 @@ public class Deploy {
 	@SneakyThrows
 	static void upload() {
 		try (SSHClient ssh = new SSHClient()) {
-			ssh.loadKnownHosts();
+			if (!OPTIONS.get(HOSTS_FILE).isEmpty())
+				ssh.loadKnownHosts(Path.of(OPTIONS.get(HOSTS_FILE)).toFile());
+
 			ssh.connect(OPTIONS.get(HOST), Integer.parseInt(OPTIONS.get(PORT)));
 			ssh.authPublickey("minecraft");
 			ssh.useCompression();
