@@ -11,6 +11,7 @@ import net.schmizz.sshj.SSHClient;
 import net.schmizz.sshj.common.IOUtils;
 import net.schmizz.sshj.connection.channel.direct.Session;
 import net.schmizz.sshj.connection.channel.direct.Session.Command;
+import net.schmizz.sshj.transport.verification.PromiscuousVerifier;
 import net.schmizz.sshj.xfer.FileSystemFile;
 import org.slf4j.impl.SimpleLogger;
 
@@ -19,6 +20,8 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.DecimalFormat;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -63,6 +66,10 @@ public class Deploy {
 		System.out.println(ANSI_GREEN + message + ANSI_RESET);
 	}
 
+	private static void info(String message) {
+		System.out.println(ANSI_YELLOW + message + ANSI_RESET);
+	}
+
 	@SneakyThrows
 	public static void main(String[] args) {
 		try {
@@ -81,6 +88,9 @@ public class Deploy {
 			for (Option option : Option.values())
 				OPTIONS.put(option, (String) parsed.valueOf(option.getArgument()));
 
+			final Runnable printTime = () -> info(LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+
+			printTime.run();
 			log("CONFIGURING...");
 			configure();
 
@@ -97,6 +107,7 @@ public class Deploy {
 			reload();
 
 			log("DONE");
+			printTime.run();
 			desktopNotification();
 		} catch (Exception ex) {
 			ex.printStackTrace();
@@ -173,6 +184,7 @@ public class Deploy {
 			if (!OPTIONS.get(HOSTS_FILE).isEmpty())
 				ssh.loadKnownHosts(Path.of(OPTIONS.get(HOSTS_FILE)).toFile());
 
+			ssh.addHostKeyVerifier(new PromiscuousVerifier());
 			ssh.connect(OPTIONS.get(HOST), Integer.parseInt(OPTIONS.get(PORT)));
 			ssh.authPublickey("minecraft");
 			ssh.useCompression();
