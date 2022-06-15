@@ -120,7 +120,7 @@ public enum Option {
 
 	public boolean hasDefaultValue() {
 		final DefaultValue annotation = getField().getAnnotation(DefaultValue.class);
-		return annotation != null && !annotation.value().isEmpty();
+		return annotation != null;
 	}
 
 	public String getDefaultValue() {
@@ -139,9 +139,9 @@ public enum Option {
 		var arg = parser.accepts(getArgument(), getDescription());
 
 		final ArgumentAcceptingOptionSpec<String> spec;
-		if (isRequired()) {
+		if (isRequired())
 			spec = arg.withRequiredArg();
-		} else
+		else
 			spec = arg.withOptionalArg();
 
 		if (hasDefaultValue())
