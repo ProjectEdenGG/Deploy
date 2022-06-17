@@ -200,7 +200,7 @@ public class Deploy {
 
 	static String getReloadCommand() {
 		String reloadCommand = OPTIONS.get(RELOAD_COMMAND).formatted(OPTIONS.get(JAR_NAME));
-		if (OPTIONS.get(PLUGIN).startsWith("Nexus"))
+		if (OPTIONS.get(PLUGIN).matches("Nexus(\\d+)?"))
 			if (RELOAD_COMMAND.isDefault(OPTIONS))
 				reloadCommand = "nexus reload";
 
