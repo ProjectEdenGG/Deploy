@@ -192,7 +192,10 @@ public class Deploy {
 			ssh.connect(OPTIONS.get(HOST), Integer.parseInt(OPTIONS.get(PORT)));
 			ssh.authPublickey("minecraft");
 			ssh.useCompression();
-			ssh.newSCPFileTransfer().upload(new FileSystemFile(findCompiledJar().toFile()), destination);
+			final File from = findCompiledJar().toFile();
+			System.out.println("  From: " + from.getAbsolutePath());
+			System.out.println("  To: " + destination);
+			ssh.newSCPFileTransfer().upload(new FileSystemFile(from), destination);
 		}
 	}
 
