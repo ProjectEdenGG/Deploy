@@ -95,6 +95,9 @@ public enum Option {
 	@Description("Folder where the compiled jar resides with Gradle")
 	@DefaultValue("build/libs")
 	GRADLE_BUILD_PATH,
+
+	@Description("The module to build and deploy")
+	MODULE,
 	;
 
 	public String getArgument() {

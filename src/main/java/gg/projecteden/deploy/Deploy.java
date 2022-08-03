@@ -1,5 +1,6 @@
 package gg.projecteden.deploy;
 
+import com.google.common.base.Strings;
 import fr.jcgay.notification.Icon;
 import fr.jcgay.notification.Notification;
 import fr.jcgay.notification.Notifier;
@@ -28,24 +29,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static gg.projecteden.deploy.Option.COMPILE_OFFLINE;
-import static gg.projecteden.deploy.Option.FRAMEWORK;
-import static gg.projecteden.deploy.Option.GRADLE_BUILD_PATH;
-import static gg.projecteden.deploy.Option.GRADLE_COMMAND;
-import static gg.projecteden.deploy.Option.HELP;
-import static gg.projecteden.deploy.Option.HOST;
-import static gg.projecteden.deploy.Option.HOSTS_FILE;
-import static gg.projecteden.deploy.Option.JAR_NAME;
-import static gg.projecteden.deploy.Option.MC_USER;
-import static gg.projecteden.deploy.Option.MVN_SKIP_TESTS;
-import static gg.projecteden.deploy.Option.MVN_TARGET_PATH;
-import static gg.projecteden.deploy.Option.PLUGIN;
-import static gg.projecteden.deploy.Option.PORT;
-import static gg.projecteden.deploy.Option.RELOAD_COMMAND;
-import static gg.projecteden.deploy.Option.SERVER;
-import static gg.projecteden.deploy.Option.SSH_USER;
-import static gg.projecteden.deploy.Option.SUDO;
-import static gg.projecteden.deploy.Option.WORKSPACE;
+import static gg.projecteden.deploy.Option.*;
 
 public class Deploy {
 	static final Map<Option, String> OPTIONS = new HashMap<>();
@@ -121,14 +105,14 @@ public class Deploy {
 
 		switch (OPTIONS.get(FRAMEWORK).toLowerCase()) {
 			case "gradle" -> {
-				compileCommand = "%s build".formatted(OPTIONS.get(GRADLE_COMMAND));
+				compileCommand = "%s %sbuild".formatted(OPTIONS.get(GRADLE_COMMAND), (Strings.isNullOrEmpty(OPTIONS.get(MODULE)) ? "" : ":%s:".formatted(OPTIONS.get(MODULE))));
 				jarPath = OPTIONS.get(GRADLE_BUILD_PATH);
 
 				if (Boolean.parseBoolean(OPTIONS.get(COMPILE_OFFLINE)))
 					compileCommand += " --offline";
 			}
 			case "maven" -> {
-				compileCommand = "mvn clean package";
+				compileCommand = "mvn %sclean package".formatted((Strings.isNullOrEmpty(OPTIONS.get(MODULE)) ? "" : "-pl %s -am ".formatted(OPTIONS.get(MODULE))));
 				jarPath = OPTIONS.get(MVN_TARGET_PATH);
 				if (Boolean.parseBoolean(OPTIONS.get(COMPILE_OFFLINE)))
 					compileCommand += " -o";
@@ -137,6 +121,8 @@ public class Deploy {
 			}
 			default -> throw new RuntimeException("Unsupported framework '" + OPTIONS.get(FRAMEWORK) + "'");
 		}
+
+		System.out.println(compileCommand);
 
 		if (isNullOrEmpty(OPTIONS.get(JAR_NAME)))
 			OPTIONS.put(JAR_NAME, OPTIONS.get(PLUGIN));
