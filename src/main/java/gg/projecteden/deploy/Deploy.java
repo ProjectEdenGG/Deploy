@@ -29,7 +29,25 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static gg.projecteden.deploy.Option.*;
+import static gg.projecteden.deploy.Option.COMPILE_OFFLINE;
+import static gg.projecteden.deploy.Option.FRAMEWORK;
+import static gg.projecteden.deploy.Option.GRADLE_BUILD_PATH;
+import static gg.projecteden.deploy.Option.GRADLE_COMMAND;
+import static gg.projecteden.deploy.Option.HELP;
+import static gg.projecteden.deploy.Option.HOST;
+import static gg.projecteden.deploy.Option.HOSTS_FILE;
+import static gg.projecteden.deploy.Option.JAR_NAME;
+import static gg.projecteden.deploy.Option.MC_USER;
+import static gg.projecteden.deploy.Option.MODULE;
+import static gg.projecteden.deploy.Option.MVN_SKIP_TESTS;
+import static gg.projecteden.deploy.Option.MVN_TARGET_PATH;
+import static gg.projecteden.deploy.Option.PLUGIN;
+import static gg.projecteden.deploy.Option.PORT;
+import static gg.projecteden.deploy.Option.RELOAD_COMMAND;
+import static gg.projecteden.deploy.Option.SERVER;
+import static gg.projecteden.deploy.Option.SSH_USER;
+import static gg.projecteden.deploy.Option.SUDO;
+import static gg.projecteden.deploy.Option.WORKSPACE;
 
 public class Deploy {
 	static final Map<Option, String> OPTIONS = new HashMap<>();
@@ -81,7 +99,7 @@ public class Deploy {
 			log("DELETING...");
 			delete();
 
-			log("COMPILING...");
+			log("COMPILING... " + ANSI_RESET + compileCommand);
 			compile();
 
 			log("UPLOADING...");
@@ -107,6 +125,8 @@ public class Deploy {
 			case "gradle" -> {
 				compileCommand = "%s %sbuild".formatted(OPTIONS.get(GRADLE_COMMAND), (Strings.isNullOrEmpty(OPTIONS.get(MODULE)) ? "" : ":%s:".formatted(OPTIONS.get(MODULE))));
 				jarPath = OPTIONS.get(GRADLE_BUILD_PATH);
+				if (!isNullOrEmpty(OPTIONS.get(MODULE)))
+					jarPath = OPTIONS.get(MODULE) + "/" + jarPath;
 
 				if (Boolean.parseBoolean(OPTIONS.get(COMPILE_OFFLINE)))
 					compileCommand += " --offline";
@@ -121,8 +141,6 @@ public class Deploy {
 			}
 			default -> throw new RuntimeException("Unsupported framework '" + OPTIONS.get(FRAMEWORK) + "'");
 		}
-
-		System.out.println(compileCommand);
 
 		if (isNullOrEmpty(OPTIONS.get(JAR_NAME)))
 			OPTIONS.put(JAR_NAME, OPTIONS.get(PLUGIN));
