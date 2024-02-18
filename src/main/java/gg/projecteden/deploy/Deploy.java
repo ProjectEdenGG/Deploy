@@ -23,31 +23,9 @@ import java.nio.file.Path;
 import java.text.DecimalFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
-import static gg.projecteden.deploy.Option.COMPILE_OFFLINE;
-import static gg.projecteden.deploy.Option.FRAMEWORK;
-import static gg.projecteden.deploy.Option.GRADLE_BUILD_PATH;
-import static gg.projecteden.deploy.Option.GRADLE_COMMAND;
-import static gg.projecteden.deploy.Option.HELP;
-import static gg.projecteden.deploy.Option.HOST;
-import static gg.projecteden.deploy.Option.HOSTS_FILE;
-import static gg.projecteden.deploy.Option.JAR_NAME;
-import static gg.projecteden.deploy.Option.MC_USER;
-import static gg.projecteden.deploy.Option.MODULE;
-import static gg.projecteden.deploy.Option.MVN_SKIP_TESTS;
-import static gg.projecteden.deploy.Option.MVN_TARGET_PATH;
-import static gg.projecteden.deploy.Option.PLUGIN;
-import static gg.projecteden.deploy.Option.PORT;
-import static gg.projecteden.deploy.Option.RELOAD_COMMAND;
-import static gg.projecteden.deploy.Option.SERVER;
-import static gg.projecteden.deploy.Option.SSH_USER;
-import static gg.projecteden.deploy.Option.SUDO;
-import static gg.projecteden.deploy.Option.WORKSPACE;
+import static gg.projecteden.deploy.Option.*;
 
 public class Deploy {
 	static final Map<Option, String> OPTIONS = new HashMap<>();
@@ -58,6 +36,8 @@ public class Deploy {
 	static String destination;
 
 	static long start = System.currentTimeMillis();
+	static UUID id = UUID.randomUUID();
+	static boolean completed;
 
 	public static final String ANSI_RESET = "\u001B[0m";
 	public static final String ANSI_RED = "\u001B[31m";
@@ -72,8 +52,25 @@ public class Deploy {
 		System.out.println(ANSI_YELLOW + message + ANSI_RESET);
 	}
 
+	private static class OnShutdown extends Thread {
+		@Override
+		public void run() {
+			if (completed) return;
+
+			log("REPAIRING ORIGINAL JAR...");
+			final String message = execRemote("mv %s.old %s".formatted(destination, destination), "minecraft");
+			if (!isNullOrEmpty(message))
+				System.out.println(message);
+
+			if (Boolean.parseBoolean(OPTIONS.get(DEPLOY_NOTIFICATIONS)))
+				mark2("deploy cancel " + id);
+		}
+	}
+
 	@SneakyThrows
 	public static void main(String[] args) {
+		Runtime.getRuntime().addShutdownHook(new OnShutdown());
+
 		try {
 			System.setProperty(SimpleLogger.DEFAULT_LOG_LEVEL_KEY, "Warn");
 
@@ -146,10 +143,12 @@ public class Deploy {
 			OPTIONS.put(JAR_NAME, OPTIONS.get(PLUGIN));
 
 		destination = "/home/minecraft/servers/%s/plugins/%s.jar".formatted(OPTIONS.get(SERVER), OPTIONS.get(JAR_NAME));
+		if (Boolean.parseBoolean(OPTIONS.get(DEPLOY_NOTIFICATIONS)))
+			mark2("deploy create %s %s %s".formatted(id, OPTIONS.get(PLUGIN), OPTIONS.get(MC_USER)));
 	}
 
 	static void delete() {
-		final String message = execRemote("rm " + destination, "minecraft");
+		final String message = execRemote("mv %s %s.old".formatted(destination, destination), "minecraft");
 		if (!isNullOrEmpty(message))
 			System.out.println(message);
 	}
@@ -158,6 +157,8 @@ public class Deploy {
 		final int exitCode = execLocal(compileCommand).exitValue();
 		if (exitCode != 0)
 			System.exit(exitCode);
+		if (Boolean.parseBoolean(OPTIONS.get(DEPLOY_NOTIFICATIONS)))
+			mark2("deploy status %s compiling".formatted(id));
 	}
 
 	@SneakyThrows
@@ -184,6 +185,8 @@ public class Deploy {
 
 	@SneakyThrows
 	static void upload() {
+		if (Boolean.parseBoolean(OPTIONS.get(DEPLOY_NOTIFICATIONS)))
+			mark2("deploy status %s uploading".formatted(id));
 		try (SSHClient ssh = new SSHClient()) {
 			if (!OPTIONS.get(HOSTS_FILE).isEmpty())
 				ssh.loadKnownHosts(Path.of(OPTIONS.get(HOSTS_FILE)).toFile());
@@ -200,9 +203,10 @@ public class Deploy {
 	}
 
 	static void reload() {
-		final String message = execRemote("mark2 send -n %s '%s'".formatted(OPTIONS.get(SERVER), getReloadCommand()), OPTIONS.get(SSH_USER));
-		if (!isNullOrEmpty(message))
-			System.out.println(message);
+		if (Boolean.parseBoolean(OPTIONS.get(DEPLOY_NOTIFICATIONS)))
+			mark2("deploy remove " + id);
+		mark2(getReloadCommand());
+		completed = true;
 	}
 
 	static String getReloadCommand() {
@@ -215,6 +219,12 @@ public class Deploy {
 			reloadCommand = "sudo %s %s".formatted(OPTIONS.get(MC_USER), reloadCommand);
 
 		return reloadCommand;
+	}
+
+	static void mark2(String command) {
+		final String message = execRemote("mark2 send -n %s '%s'".formatted(OPTIONS.get(SERVER), command), OPTIONS.get(SSH_USER));
+		if (!isNullOrEmpty(message))
+			System.out.println(message);
 	}
 
 	@SneakyThrows

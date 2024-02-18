@@ -98,6 +98,10 @@ public enum Option {
 
 	@Description("The module to build and deploy")
 	MODULE,
+
+	@Description("Tells the server about incoming deployments")
+	@DefaultValue("true")
+	DEPLOY_NOTIFICATIONS
 	;
 
 	public String getArgument() {
