@@ -157,8 +157,6 @@ public class Deploy {
 		final int exitCode = execLocal(compileCommand).exitValue();
 		if (exitCode != 0)
 			System.exit(exitCode);
-		if (Boolean.parseBoolean(OPTIONS.get(DEPLOY_NOTIFICATIONS)))
-			mark2("deploy status %s compiling".formatted(id));
 	}
 
 	@SneakyThrows
@@ -264,6 +262,8 @@ public class Deploy {
 	@SneakyThrows
 	static String execRemote(String command, String username) {
 		try (SSHClient ssh = new SSHClient()) {
+			ssh.addHostKeyVerifier(new PromiscuousVerifier());
+			ssh.useCompression();
 			ssh.loadKnownHosts();
 			ssh.connect(OPTIONS.get(HOST), Integer.parseInt(OPTIONS.get(PORT)));
 			ssh.authPublickey(username);
