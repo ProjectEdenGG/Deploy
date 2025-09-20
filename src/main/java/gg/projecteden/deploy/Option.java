@@ -42,7 +42,7 @@ public enum Option {
 	HOST,
 
 	@Description("SSH Port")
-	@DefaultValue("9802")
+	@DefaultValue("22")
 	PORT,
 
 	@Description("Known hosts file")
