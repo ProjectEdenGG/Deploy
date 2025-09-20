@@ -38,7 +38,7 @@ public enum Option {
 	SUDO,
 
 	@Description("Hostname of the server")
-	@DefaultValue("server.projecteden.gg")
+	@DefaultValue("sol.projecteden.gg")
 	HOST,
 
 	@Description("SSH Port")
