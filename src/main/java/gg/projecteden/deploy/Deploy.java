@@ -58,7 +58,7 @@ public class Deploy {
 			if (completed) return;
 
 			log("REPAIRING ORIGINAL JAR...");
-			final String message = execRemote("mv %s.old %s".formatted(destination, destination), "minecraft");
+			final String message = execRemote("mv %s.old %s".formatted(destination, destination), OPTIONS.get(GAME));
 			if (!isNullOrEmpty(message))
 				System.out.println(message);
 
@@ -142,13 +142,13 @@ public class Deploy {
 		if (isNullOrEmpty(OPTIONS.get(JAR_NAME)))
 			OPTIONS.put(JAR_NAME, OPTIONS.get(PLUGIN));
 
-		destination = "/home/minecraft/servers/%s/plugins/%s.jar".formatted(OPTIONS.get(SERVER), OPTIONS.get(JAR_NAME));
+		destination = "/home/" + OPTIONS.get(GAME) + "/servers/%s/%s/%s.jar".formatted(OPTIONS.get(SERVER), OPTIONS.get(PLUGINS_FOLDER), OPTIONS.get(JAR_NAME));
 		if (Boolean.parseBoolean(OPTIONS.get(DEPLOY_NOTIFICATIONS)))
-			mark2("deploy create %s %s %s".formatted(id, OPTIONS.get(PLUGIN), OPTIONS.get(MC_USER)));
+			mark2("deploy create %s %s %s".formatted(id, OPTIONS.get(PLUGIN), OPTIONS.get(GAME_USER)));
 	}
 
 	static void delete() {
-		final String message = execRemote("mv %s %s.old".formatted(destination, destination), "minecraft");
+		final String message = execRemote("mv %s %s.old".formatted(destination, destination), OPTIONS.get(GAME));
 		if (!isNullOrEmpty(message))
 			System.out.println(message);
 	}
@@ -191,7 +191,7 @@ public class Deploy {
 
 			ssh.addHostKeyVerifier(new PromiscuousVerifier());
 			ssh.connect(OPTIONS.get(HOST), Integer.parseInt(OPTIONS.get(PORT)));
-			ssh.authPublickey("minecraft");
+			ssh.authPublickey(OPTIONS.get(GAME));
 			ssh.useCompression();
 			final File from = findCompiledJar().toFile();
 			System.out.println("  From: " + from.getAbsolutePath());
@@ -214,15 +214,24 @@ public class Deploy {
 				reloadCommand = "nexus reload";
 
 		if (Boolean.parseBoolean(OPTIONS.get(SUDO)))
-			reloadCommand = "sudo %s %s".formatted(OPTIONS.get(MC_USER), reloadCommand);
+			reloadCommand = "sudo %s %s".formatted(OPTIONS.get(GAME_USER), reloadCommand);
 
 		return reloadCommand;
 	}
 
 	static void mark2(String command) {
-		final String message = execRemote("mark2 send -n %s '%s'".formatted(OPTIONS.get(SERVER), command), OPTIONS.get(SSH_USER));
-		if (!isNullOrEmpty(message))
-			System.out.println(message);
+		String game = OPTIONS.get(GAME);
+		switch (game) {
+			case "hytale" ->
+					execRemote("tmux send-keys -t %s '%s' Enter".formatted(OPTIONS.get(SERVER), command), OPTIONS.get(SSH_USER));
+			case "minecraft" -> {
+				final String message = execRemote("mark2 send -n %s '%s'".formatted(OPTIONS.get(SERVER), command), OPTIONS.get(SSH_USER));
+				if (!isNullOrEmpty(message))
+					System.out.println(message);
+			}
+			case null, default ->
+				throw new RuntimeException("Unsupported game '" + game + "'");
+		}
 	}
 
 	@SneakyThrows

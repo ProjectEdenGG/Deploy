@@ -22,18 +22,18 @@ public enum Option {
 	SSH_USER,
 
 	@Required
-	@Description("Minecraft user to execute commands with")
-	MC_USER,
+	@Description("Game user to execute commands with")
+	GAME_USER,
 
 	@Required
 	@Description("Project folder name")
 	PLUGIN,
 
 	@Required
-	@Description("Minecraft server to deploy to")
+	@Description("Game server to deploy to")
 	SERVER,
 
-	@Description("Control whether the plugin is reloaded with console or by sudoing the minecraft account")
+	@Description("Control whether the plugin is reloaded with console or by sudoing the game account")
 	@DefaultValue("true")
 	SUDO,
 
@@ -49,9 +49,17 @@ public enum Option {
 	@DefaultValue("")
 	HOSTS_FILE,
 
+	@Description("Plugins folder")
+	@DefaultValue("plugins")
+	PLUGINS_FOLDER,
+
 	@Description("Reload command")
 	@DefaultValue("plugman reload %s")
 	RELOAD_COMMAND,
+
+	@Description("Game")
+	@DefaultValue("minecraft")
+	GAME,
 
 	@Description("Jar name, if different than folder name")
 	JAR_NAME,
